@@ -31,8 +31,7 @@ COPY . /RePlAce
 RUN mkdir -p /RePlAce/build && \
     cd /RePlAce/build && \
     cmake -DCMAKE_INSTALL_PREFIX=/build .. && \
-    make && \
-    echo "RePlAce build completed."
+    make
 
 # Start the runner stage
 FROM ubuntu:20.04 AS runner
@@ -41,8 +40,7 @@ FROM ubuntu:20.04 AS runner
 RUN apt-get update && apt-get install -y \
     tcl \
     libsm6 libx11-6 libxext6 libjpeg8 libgomp1 \
-    && rm -rf /var/lib/apt/lists/* && \
-    echo "Runtime dependencies installed."
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy necessary binaries and files from the builder
 COPY --from=builder /RePlAce/build/replace /build/replace
@@ -57,20 +55,13 @@ COPY --from=builder /RePlAce/run_placement.tcl /home/openroad/run_placement.tcl
 
 # Create a non-root user and change ownership of files
 RUN useradd -ms /bin/bash openroad && \
-    chown -R openroad:openroad /home/openroad && \
-    echo "Non-root user created and file ownership changed."
+    chown -R openroad:openroad /home/openroad
 
 USER openroad
 WORKDIR /home/openroad
 
 # Make your script executable
-RUN chmod +x ./run_placement_task.sh && \
-    echo "Script made executable."
-
-# Add debugging messages to the script
-RUN sed -i '1i echo "Running run_placement_task.sh..."' ./run_placement_task.sh && \
-    sed -i '1i set -x' ./run_placement_task.sh && \
-    echo "Added debugging messages to the script."
+RUN chmod +x ./run_placement_task.sh
 
 # Set your script as the entry point
 ENTRYPOINT ["./run_placement_task.sh"]
