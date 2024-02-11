@@ -37,15 +37,22 @@ set(EIGEN_HOME
   ${PROJECT_SOURCE_DIR}/module/eigen-git-mirror 
 )
 
+set(CMAKE_INSTALL_RPATH "/home/mango/aws-install/lib")
+
+list(APPEND CMAKE_PREFIX_PATH "/home/mango/aws-install")
+
+# Ensure CMake can find and configure ZLIB
+find_package(ZLIB REQUIRED)
+
+# Then, find the AWS SDK components
+find_package(AWSSDK REQUIRED COMPONENTS core s3)
+
 add_subdirectory(${DEFLIB_HOME})
 add_subdirectory(${LEFLIB_HOME})
 add_subdirectory(${FLUTE_HOME})
 add_subdirectory(${OPENSTA_HOME})
 
 set(ENV{TYPE_CALL} library)
-
-
-
 
 ## configure settings
 find_package(GoogleHash)
@@ -96,6 +103,7 @@ set (REPLACE_SRC
   src/replace_external.cpp
   src/replace_private.cpp
   src/replace_wrap.cpp
+  src/S3Uploader.cpp
   )
 
 
@@ -215,6 +223,7 @@ target_link_libraries( replace
 
   ${OpenMP_CXX_LIBRARIES}
   Threads::Threads
+  ${AWSSDK_LINK_LIBRARIES}
   )
 
 ############################################################

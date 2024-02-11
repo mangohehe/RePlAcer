@@ -54,6 +54,10 @@
 #include "timingSta.h"
 #include <iostream>
 #include <boost/functional/hash.hpp>
+#include <aws/s3/S3Client.h>
+#include <aws/s3/model/PutObjectRequest.h>
+#include <fstream> // if you weren't already including this
+#include "S3Uploader.h"
 
 using namespace std;
 using Replace::NetInfo;
@@ -429,51 +433,63 @@ void ParseLefDef() {
 }
 
 void WriteDef(const char* defOutput) {
-  MODULE* curModule = NULL;
+    MODULE* curModule = NULL;
+    std::string tempFileName = "temp_def_output.def"; // Temporary file name
 
-  // moduleInstnace -> defComponentStor
-  for(int i = 0; i < moduleCNT; i++) {
-    curModule = &moduleInstance[i];
-    auto cmpPtr = __ckt.defComponentMap.find(string(curModule->Name()));
-    if(cmpPtr == __ckt.defComponentMap.end()) {
-      cout << "** ERROR:  Module Instance ( " << curModule->Name()
-           << " ) does not exist in COMPONENT statement (defComponentMap) "
-           << endl;
-      exit(1);
+    // Open temporary file
+    FILE* fp = fopen(tempFileName.c_str(), "w");
+    if (!fp) {
+        std::cerr << "** ERROR: Cannot open temporary file for DEF writing" << std::endl;
+        exit(1);
     }
 
-    // update into PLACED status
-    if(!__ckt.defComponentStor[cmpPtr->second].isPlaced()) {
-      __ckt.defComponentStor[cmpPtr->second].setPlacementStatus(
-          DEFI_COMPONENT_PLACED);
+    // moduleInstnace -> defComponentStor
+    for(int i = 0; i < moduleCNT; i++) {
+        curModule = &moduleInstance[i];
+        auto cmpPtr = __ckt.defComponentMap.find(std::string(curModule->Name()));
+        if(cmpPtr == __ckt.defComponentMap.end()) {
+            std::cout << "** ERROR:  Module Instance ( " << curModule->Name()
+                 << " ) does not exist in COMPONENT statement (defComponentMap) "
+                 << std::endl;
+            exit(1);
+        }
+
+        // Update into PLACED status
+        if(!__ckt.defComponentStor[cmpPtr->second].isPlaced()) {
+            __ckt.defComponentStor[cmpPtr->second].setPlacementStatus(DEFI_COMPONENT_PLACED);
+        }
+
+        // Update into corresponding coordinate
+        int x = INT_CONVERT(curModule->pmin.x * unitX) - offsetX;
+        int y = INT_CONVERT(curModule->pmin.y * unitY) - offsetY;
+
+        // x-coordinate, y-coordinate, cell-orient
+        auto orientPtr = __ckt.defRowY2OrientMap.find(y);
+        __ckt.defComponentStor[cmpPtr->second].setPlacementLocation(
+            x, y, (orientPtr != __ckt.defRowY2OrientMap.end()) ? orientPtr->second : 0);
     }
 
-    // update into corresponding coordinate
-    //
-    // unitX & unitY is used to recover scaling
+    __ckt.WriteDef(fp); // Write to the temporary file
+    fclose(fp); // Close the file
 
-    int x = INT_CONVERT(curModule->pmin.x * unitX) - offsetX;
-    int y = INT_CONVERT(curModule->pmin.y * unitY) - offsetY;
+    // Read the temporary file into a string
+    std::ifstream t(tempFileName);
+    std::stringstream buffer;
+    buffer << t.rdbuf();
 
-    // x-coordinate, y-coordinate, cell-orient
-    auto orientPtr = __ckt.defRowY2OrientMap.find(y);
+    // Create an S3Uploader instance (ensure you have set the region correctly)
+    S3Uploader uploader;
 
-    __ckt.defComponentStor[cmpPtr->second].setPlacementLocation(
-        x, y,
-        (orientPtr != __ckt.defRowY2OrientMap.end()) ? orientPtr->second : 0);
+    // Use the new UploadData method
+    if (!uploader.UploadData(buffer.str(), "semigpt-chip-nexus-arxiv-paper-01221317-mahala", "my-test-object")) {
+        std::cerr << "** ERROR: Failed to upload DEF content to S3 bucket" << std::endl;
+        exit(1);
+    }
 
-    // cout << curModule->name << ": " << curModule->pmin.x << " " <<
-    // curModule->pmin.y << endl;
-  }
-
-  FILE* fp = fopen(defOutput, "w");
-  if(!fp) {
-    cout << "** ERROR:  Cannot open " << defOutput << " (DEF WRITING)" << endl;
-    exit(1);
-  }
-
-  __ckt.WriteDef(fp);
+    // Clean up the temporary file
+    remove(tempFileName.c_str());
 }
+
 
 ////////
 //

@@ -1,5 +1,5 @@
 #include "replace_private.h"
-
+#include <limits>
 
 using std::string;
 using std::cout;

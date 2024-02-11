@@ -44,6 +44,7 @@
 #include <ctgmath>
 #include <string>
 #include <omp.h>
+#include <limits>
 
 #include "bin.h"
 #include "charge.h"

@@ -48,7 +48,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-
+#include <aws/core/Aws.h>
 #include "bookShelfIO.h"
 #include "lefdefIO.h"
 #include "bin.h"
@@ -428,6 +428,10 @@ int main(int argc, char *argv[]) {
  
   Tcl_Main(1, argv, replaceTclAppInit);
 
+  Aws::SDKOptions options;
+  options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
+  Aws::InitAPI(options);
+
   double tot_cpu = 0;
   double time_ip = 0;
   double time_tp = 0;
@@ -678,6 +682,7 @@ int main(int argc, char *argv[]) {
     TimingInst.WriteSpef(spefName);
   }
 
+  Aws::ShutdownAPI(options);
   //    ShowPlot( benchName );
   return 0;
 }

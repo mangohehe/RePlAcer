@@ -7,13 +7,12 @@
 
 class S3Uploader {
 public:
-    S3Uploader(const Aws::String& region);
+    S3Uploader();
     ~S3Uploader();
-    bool UploadFile(const std::string& file_name, const std::string& bucket_name, const std::string& object_name);
+    bool UploadData(const std::string& data, const std::string& bucket_name, const std::string& object_name);
 
 private:
     Aws::SDKOptions options;
-    Aws::String region;
 };
 
 #endif // S3_UPLOADER_H
