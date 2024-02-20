@@ -22,15 +22,37 @@ RUN apt-get update && apt-get install -y \
     cmake \
     libjpeg-turbo8-dev \
     libgomp1 \
+    # Additional dependencies for AWS SDK
+    libssl-dev \
+    libcurl4-openssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the entire project directory into the container
-COPY . /RePlAce
+# Clone and build AWS SDK for C++ with only the S3 component
+RUN whoami
 
-# Build RePlAce
-RUN mkdir -p /RePlAce/build && \
-    cd /RePlAce/build && \
-    cmake -DCMAKE_INSTALL_PREFIX=/build .. && \
+RUN git clone --recurse-submodules https://github.com/aws/aws-sdk-cpp.git
+RUN mkdir -p /aws-sdk-cpp/build
+RUN chown root:root /usr/local -R && chmod 755 /usr/local -R
+
+RUN cd /aws-sdk-cpp/build && cmake .. -DBUILD_ONLY="core;s3" -DENABLE_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCUSTOM_MEMORY_MANAGEMENT=OFF -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_PREFIX_PATH=/usr/local -DAws-sdk-cpp_DIR=/usr/local/lib/cmake/Aws-sdk-cpp --debug-output --trace
+RUN cd /aws-sdk-cpp/build && make && make install
+
+# Debug: List the contents to verify installation
+RUN ls -lah /usr/local/lib/cmake/Aws-sdk-cpp || true
+RUN ls -lah /usr/local/lib/cmake || true
+RUN ls -lah /usr/local || true
+
+# Check if AWS SDK was installed successfully
+# Check if AWS SDK was installed successfully
+RUN if [ ! -d "/usr/local/lib/cmake/AWSSDK" ]; then echo "AWS SDK installation failed"; exit 1; fi
+
+# Copy the entire project directory into the container
+COPY . /replacer
+
+# Build replacer
+RUN mkdir -p /replacer/build && \
+    cd /replacer/build && \
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_PREFIX_PATH=/usr/local -DAws-sdk-cpp_DIR=/usr/local/lib/cmake/AWSSDK && \
     make
 
 # Start the runner stage
@@ -43,15 +65,15 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy necessary binaries and files from the builder
-COPY --from=builder /RePlAce/build/replace /build/replace
-COPY --from=builder /RePlAce/module/OpenSTA/app/sta /build/sta
-COPY --from=builder /RePlAce/test/PORT9.dat /build/share/PORT9.dat
-COPY --from=builder /RePlAce/test/POST9.dat /build/share/POST9.dat
-COPY --from=builder /RePlAce/test/POWV9.dat /build/share/POWV9.dat
-COPY --from=builder /RePlAce/test/library /build/share/library
-COPY --from=builder /RePlAce/test/design /build/share/design
-COPY --from=builder /RePlAce/run_placement_task.sh /home/openroad/run_placement_task.sh
-COPY --from=builder /RePlAce/run_placement.tcl /home/openroad/run_placement.tcl
+COPY --from=builder /replacer/build/replace /build/replace
+COPY --from=builder /replacer/module/OpenSTA/app/sta /build/sta
+COPY --from=builder /replacer/test/PORT9.dat /build/share/PORT9.dat
+COPY --from=builder /replacer/test/POST9.dat /build/share/POST9.dat
+COPY --from=builder /replacer/test/POWV9.dat /build/share/POWV9.dat
+COPY --from=builder /replacer/test/library /build/share/library
+COPY --from=builder /replacer/test/design /build/share/design
+COPY --from=builder /replacer/run_placement_task.sh /home/openroad/run_placement_task.sh
+COPY --from=builder /replacer/run_placement.tcl /home/openroad/run_placement.tcl
 
 # Create a non-root user and change ownership of files
 RUN useradd -ms /bin/bash openroad && \
