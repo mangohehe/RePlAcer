@@ -22,7 +22,18 @@ RUN apt-get update && apt-get install -y \
     cmake \
     libjpeg-turbo8-dev \
     libgomp1 \
+    # Additional dependencies for AWS SDK
+    libssl-dev \
+    libcurl4-openssl-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Clone and build AWS SDK for C++ with only the S3 component
+RUN git clone --recurse-submodules https://github.com/aws/aws-sdk-cpp.git
+RUN mkdir -p /aws-sdk-cpp/build
+RUN mkdir -p ~/aws-install
+#RUN cd /aws-sdk-cpp/build && cmake -DBUILD_ONLY="core" -DCMAKE_INSTALL_PREFIX=/build -DCMAKE_PREFIX_PATH=/usr/local -DBUILD_SHARED_LIBS=OFF -DCUSTOM_MEMORY_MANAGEMENT=OFF  -DAws-sdk-cpp_DIR=/usr/local/lib/cmake/Aws-sdk-cpp .. 
+RUN cd /aws-sdk-cpp/build &&  cmake .. -DBUILD_ONLY="core" -DENABLE_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCUSTOM_MEMORY_MANAGEMENT=OFF -DCMAKE_INSTALL_PREFIX=~/aws-install -DCMAKE_PREFIX_PATH=~/aws-install -DAws-sdk-cpp_DIR=~/aws-install/lib/cmake/Aws-sdk-cpp --debug-output --trace
+RUN cd /aws-sdk-cpp/build && make VERBOSE=1
 
 # Copy the entire project directory into the container
 COPY . /RePlAce
