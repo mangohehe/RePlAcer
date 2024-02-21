@@ -44,12 +44,17 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <fstream>
+#include <iostream>
+#include <nlohmann/json.hpp>
 
 #include "replace_private.h"
 #include "opt.h"
 #include "lefdefIO.h"
 #include "routeOpt.h"
+#include "aws-utils/S3Downloader.h"
 
+using json = nlohmann::json;
 
 void initGlobalVars() {
   bmFlagCMD = "etc";       // string
@@ -235,6 +240,49 @@ void initGlobalVarsAfterParse() {
   flg_3dic = 1;
   flg_3dic_io = 0;
   ///////////////////////////////////////////////////////
+}
+
+void initArgumentFromS3 () {
+    Aws::SDKOptions options;
+    options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
+
+    std::string s3BucketName = std::getenv("Input_S3_BUCKET");
+    std::string s3FileKey = std::getenv("S3_KEY");
+    std::string localConfigPath = "./config.json"; // Temporary local path for the downloaded config file
+
+    // Initialize S3 downloader
+    S3Downloader downloader;
+    downloader.Init(options);
+
+    // Download the config file
+    if (!downloader.DownloadFile(s3BucketName, s3FileKey, localConfigPath)) {
+        std::cerr << "Failed to download configuration file from S3." << std::endl;
+        downloader.Shutdown();
+        exit(1);
+    }
+
+    // Open the downloaded JSON configuration file
+    std::ifstream configFile(localConfigPath);
+    if (!configFile.is_open()) {
+        std::cerr << "Could not open downloaded configuration file: " << localConfigPath << std::endl;
+        downloader.Shutdown();
+        exit(1);
+    }
+
+    // Parse the JSON configuration
+    json config;
+    configFile >> config;
+
+    // Initialize default global variables first
+    initGlobalVars();
+
+    // Now proceed to initialize global variables based on the JSON configuration
+    parseConfigJson(config);
+
+    // Clean up
+    configFile.close();
+    std::remove(localConfigPath.c_str());
+    downloader.Shutdown();
 }
 
 void initArgument(int argc, char *argv[]) {
@@ -1129,5 +1177,65 @@ bool criticalArgumentError() {
     return true;
   }
   return false;
+}
+
+void parseConfigJson(const json& config) {
+    // Example parsing various types of data from the config JSON
+    if (config.contains("bmflag")) {
+        bmFlagCMD = config["bmflag"].get<std::string>();
+    }
+    if (config.contains("target_cell_den")) {
+        target_cell_den = config["target_cell_den"].get<float>();
+    }
+    if (config.contains("verbose")) {
+        isVerbose = config["verbose"].get<bool>();
+    }
+    if (config.contains("bin")) {
+        auto bin = config["bin"];
+        if (bin.is_array() && bin.size() == 2) {
+            dim_bin.x = bin[0].get<int>();
+            dim_bin.y = bin[1].get<int>();
+        }
+    }
+    if (config.contains("overflow")) {
+        overflowMin = config["overflow"].get<float>();
+    }
+    if (config.contains("routability")) {
+        isRoutability = config["routability"].get<bool>();
+    }
+    if (config.contains("plot")) {
+        isPlot = config["plot"].get<bool>();
+    }
+    if (config.contains("onlyGP")) {
+        isOnlyGlobalPlace = config["onlyGP"].get<bool>();
+    }
+    if (config.contains("lib")) {
+        libStor.clear();
+        for (const auto& lib : config["lib"]) {
+            libStor.push_back(lib.get<std::string>());
+        }
+    }
+    if (config.contains("lef")) {
+        lefStor.clear();
+        for (const auto& lef : config["lef"]) {
+            lefStor.push_back(lef.get<std::string>());
+        }
+    }
+    if (config.contains("def")) {
+        defName = config["def"].get<std::string>();
+    }
+    if (config.contains("sdc")) {
+        sdcName = config["sdc"].get<std::string>();
+    }
+    if (config.contains("output")) {
+        outputCMD = config["output"].get<std::string>();
+    }
+    if (config.contains("timing")) {
+        isTiming = config["timing"].get<bool>();
+    }
+    // Add more parameters as needed...
+
+    // After parsing, you might want to adjust values or call any functions to finalize initialization
+    initGlobalVarsAfterParse();
 }
 

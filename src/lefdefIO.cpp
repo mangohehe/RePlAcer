@@ -57,7 +57,7 @@
 #include <aws/s3/S3Client.h>
 #include <aws/s3/model/PutObjectRequest.h>
 #include <fstream> // if you weren't already including this
-#include "S3Uploader.h"
+#include "aws-utils/S3Uploader.h"
 
 using namespace std;
 using Replace::NetInfo;
@@ -434,6 +434,53 @@ void ParseLefDef() {
 
 void WriteDef(const char* defOutput) {
     MODULE* curModule = NULL;
+
+    // moduleInstnace -> defComponentStor
+    for(int i = 0; i < moduleCNT; i++) {
+        curModule = &moduleInstance[i];
+    auto cmpPtr = __ckt.defComponentMap.find(string(curModule->Name()));
+        if(cmpPtr == __ckt.defComponentMap.end()) {
+      cout << "** ERROR:  Module Instance ( " << curModule->Name()
+                 << " ) does not exist in COMPONENT statement (defComponentMap) "
+           << endl;
+            exit(1);
+        }
+
+    // update into PLACED status
+        if(!__ckt.defComponentStor[cmpPtr->second].isPlaced()) {
+      __ckt.defComponentStor[cmpPtr->second].setPlacementStatus(
+          DEFI_COMPONENT_PLACED);
+        }
+
+    // update into corresponding coordinate
+    //
+    // unitX & unitY is used to recover scaling
+
+        int x = INT_CONVERT(curModule->pmin.x * unitX) - offsetX;
+        int y = INT_CONVERT(curModule->pmin.y * unitY) - offsetY;
+
+        // x-coordinate, y-coordinate, cell-orient
+        auto orientPtr = __ckt.defRowY2OrientMap.find(y);
+
+        __ckt.defComponentStor[cmpPtr->second].setPlacementLocation(
+        x, y,
+        (orientPtr != __ckt.defRowY2OrientMap.end()) ? orientPtr->second : 0);
+
+    // cout << curModule->name << ": " << curModule->pmin.x << " " <<
+    // curModule->pmin.y << endl;
+    }
+
+  FILE* fp = fopen(defOutput, "w");
+  if(!fp) {
+    cout << "** ERROR:  Cannot open " << defOutput << " (DEF WRITING)" << endl;
+        exit(1);
+    }
+
+  __ckt.WriteDef(fp);
+}
+
+void WriteDeftoS3(const char* defOutput) {
+    MODULE* curModule = NULL;
     std::string tempFileName = "temp_def_output.def"; // Temporary file name
 
     // Open temporary file
@@ -477,11 +524,12 @@ void WriteDef(const char* defOutput) {
     std::stringstream buffer;
     buffer << t.rdbuf();
 
-    // Create an S3Uploader instance (ensure you have set the region correctly)
     S3Uploader uploader;
+    std::string s3BucketName = std::getenv("Output_S3_BUCKET");
+    std::string s3FileKey = std::getenv("S3_KEY");
 
     // Use the new UploadData method
-    if (!uploader.UploadData(buffer.str(), "semigpt-chip-nexus-arxiv-paper-01221317-mahala", "my-test-object")) {
+    if (!uploader.UploadData(buffer.str(), s3BucketName, s3FileKey)) {
         std::cerr << "** ERROR: Failed to upload DEF content to S3 bucket" << std::endl;
         exit(1);
     }
