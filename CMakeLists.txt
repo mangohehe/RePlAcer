@@ -5,6 +5,9 @@ project(RePlAce)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_C_FLAGS_DEBUG "-g -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 
 # For Multithread
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Dcimg_use_jpeg=1 -DUSE_FFT2D_PTHREADS=1 -DFFT_2D_MAX_THREADS=16 -O3 ${OpenMP_CXX_FLAGS}")
@@ -102,8 +105,9 @@ set (REPLACE_SRC
   src/wlen.cpp
   src/replace_external.cpp
   src/replace_private.cpp
+  src/aws-utils/S3Uploader.cpp
   src/replace_wrap.cpp
-  src/S3Uploader.cpp
+  src/aws-utils/S3Downloader.cpp
   )
 
 

@@ -425,8 +425,14 @@ replaceTclAppInit(Tcl_Interp *interp) {
 }
 
 int main(int argc, char *argv[]) {
- 
-  Tcl_Main(1, argv, replaceTclAppInit);
+	  // Print all command-line arguments
+  std::cout << "Command-line arguments:" << std::endl;
+  // Tcl_Main(1, argv, replaceTclAppInit);
+  for(int i = 0; i < argc; i++) {
+	std::cout << "fgao debugging: " << std::endl;
+	std::cout << "argv[" << i << "]: " << argv[i] << std::endl;
+  }
+
 
   Aws::SDKOptions options;
   options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
@@ -441,7 +447,7 @@ int main(int argc, char *argv[]) {
   double time_cGP2D = 0;
   double time_cGP = 0;
   double time_dp = 0;
-  
+
   time_t rawtime;
   struct tm *timeinfo;
 
@@ -459,7 +465,7 @@ int main(int argc, char *argv[]) {
   ///// Parse Arguments (defined in argument.cpp) ///////////////////////
   // initArgument(argc, argv);
 
-  initArgumentFromS3 ();
+  initArgumentFromS3();
   ///////////////////////////////////////////////////////////////////////
 
   ///////////////////////////////////////////////////////////////////////
@@ -485,7 +491,8 @@ int main(int argc, char *argv[]) {
     PrintProcBegin("Initial Placement");
     time_start(&time_ip);
     build_data_struct(!isInitSeed);
-    initialPlacement_main();
+    // TODO(Fegao): disable the initial placement step due to non-converge issue
+    // initialPlacement_main();
     time_end(&time_ip);
     PrintProcEnd("Initial Placement");
     ///////////////////////////////////////////////////////////////////////
@@ -532,7 +539,7 @@ int main(int argc, char *argv[]) {
     if(placementMacroCNT > 0) {
       ///////////////////////////////////////////////////////////////////////
       ///// mGP2D:  MIXED_SIZE_2D_GLOBAL_PLACE //////////////////////////////
-    
+
       PrintProc("Begin Mixed-Size Global Placement ...");
       time_start(&time_mGP2D);
       mGP2DglobalPlacement_main();
@@ -541,8 +548,8 @@ int main(int argc, char *argv[]) {
       printf("   RUNTIME(s) : %.4f\n\n\n", time_mGP2D);
       PrintProc("End Mixed-Size Global Placement");
 
-      WriteDef(defGpOutput);
-      WriteDef(defOutput);
+      WriteDeftoS3(defGpOutput);
+      WriteDeftoS3(defOutput);
 
       // no need to run any other flow with MS-RePlAce
       return 0;
@@ -604,11 +611,12 @@ int main(int argc, char *argv[]) {
     tier_assign(STDCELLonly);
     setup_before_opt();
   }
-  
+
   PrintUnscaledHpwl("GlobalPlacer");
 
   // Write BookShelf format
-  WriteBookshelf();
+  // TODO(fegao): disable the routing process due to seg fault
+  // WriteBookshelf();
 
   if(isPlot) {
     SaveCellPlotAsJPEG("Final Global Placement Result", false,
@@ -616,7 +624,7 @@ int main(int argc, char *argv[]) {
   }
 
   if(inputMode == InputMode::lefdef) {
-    WriteDef(defGpOutput);
+	  WriteDeftoS3(defGpOutput);
   }
 
   ///////////////////////////////////////////////////////////////////////
@@ -639,7 +647,7 @@ int main(int argc, char *argv[]) {
 
   output_final_pl(gDP3_pl);
   if(inputMode == InputMode::lefdef) {
-    WriteDef(defOutput);
+	  WriteDeftoS3(defOutput);
   }
 
   printf(" ### Numbers of Iterations: \n");
@@ -662,7 +670,7 @@ int main(int argc, char *argv[]) {
   printf(" ### CPU_TOT is %.2lf seconds (%.2lf min).\n\n", tot_cpu,
          tot_cpu / 60);
   fflush(stdout);
-  
+
   PrintUnscaledHpwl("Final");
 
   //    SavePlot( "Final Placement Result");
@@ -687,6 +695,56 @@ int main(int argc, char *argv[]) {
   Aws::ShutdownAPI(options);
   //    ShowPlot( benchName );
   return 0;
+}
+
+
+// Define a DebugInfo struct to hold various pieces of debug information
+struct InitDebugInfo {
+    double inv_RAND_MAX;
+    std::string global_router;
+    std::string detailPlacer;
+    double global_macro_area_scale;
+    std::string currentDir;
+    std::string benchName;
+    std::string gbch_dir;
+    std::string output_dir;
+    std::string dir_bnd;
+    int experimentIndex;
+};
+// Implement this function if your detailPlacer is an enum or requires conversion to a string
+std::string detailPlacerToString(int detailPlacer) {
+    switch (detailPlacer) {
+        case FastPlace:
+            return "FastPlace";
+        case NTUplace3:
+            return "NTUplace3";
+        case NTUplace4h:
+            return "NTUplace4h";
+        default:
+            return "Unknown";
+    }
+}
+void printInitDebugInfo(const InitDebugInfo& debugInfo) {
+    std::cout << "====== Debug Information ======" << std::endl;
+
+    // Assuming inv_RAND_MAX is a float or double
+    PrintInfoPrec("inv_RAND_MAX", debugInfo.inv_RAND_MAX, 6); // Adjust precision as needed
+
+    PrintInfoString("Global Router", debugInfo.global_router);
+
+    // Assuming detailPlacer is an enum or int that needs a conversion to a meaningful string
+    PrintInfoString("Detail Placer", debugInfo.detailPlacer);
+    // Assuming global_macro_area_scale is a float or double
+    PrintInfoPrec("Global Macro Area Scale", debugInfo.global_macro_area_scale, 6); // Adjust precision as needed
+
+    PrintInfoString("Current Directory", debugInfo.currentDir);
+    PrintInfoString("Benchmark Name", debugInfo.benchName);
+    PrintInfoString("Benchmark Directory", debugInfo.gbch_dir);
+    PrintInfoString("Output Directory", debugInfo.output_dir);
+    PrintInfoString("Directory Bound", debugInfo.dir_bnd);
+    PrintInfoInt("Experiment Index", debugInfo.experimentIndex);
+
+    std::cout << "===============================" << std::endl;
 }
 
 // mgwoo
@@ -862,6 +920,23 @@ void init() {
 
   // mgwoo
   mkdirPlot();
+
+  // Populate the DebugInfo structure with actual values from your init function
+  InitDebugInfo debugInfo;
+  debugInfo.inv_RAND_MAX = inv_RAND_MAX;
+  debugInfo.global_router = global_router;
+  // Assume detailPlacer is a string or convert it to a string if it's not
+  debugInfo.detailPlacer = detailPlacer; // You might need to adjust this based on the actual type of detailPlacer
+  debugInfo.global_macro_area_scale = global_macro_area_scale;
+  debugInfo.currentDir = currentDir;
+  debugInfo.benchName = benchName;
+  debugInfo.gbch_dir = gbch_dir;
+  debugInfo.output_dir = output_dir;
+  debugInfo.dir_bnd = dir_bnd;
+  debugInfo.experimentIndex = ver_num; // Assuming ver_num is your experiment index
+
+  // Call the printDebugInfo function
+  printInitDebugInfo(debugInfo);
 }
 
 void calcTSVweight() {

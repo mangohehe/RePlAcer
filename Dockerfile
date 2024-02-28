@@ -46,6 +46,9 @@ RUN ls -lah /usr/local || true
 # Check if AWS SDK was installed successfully
 RUN if [ ! -d "/usr/local/lib/cmake/AWSSDK" ]; then echo "AWS SDK installation failed"; exit 1; fi
 
+# Install nlohmann/json library
+RUN apt-get update && apt-get install -y nlohmann-json3-dev
+
 # Copy the entire project directory into the container
 COPY . /replacer
 
@@ -62,6 +65,7 @@ FROM ubuntu:20.04 AS runner
 RUN apt-get update && apt-get install -y \
     tcl \
     libsm6 libx11-6 libxext6 libjpeg8 libgomp1 \
+    libcurl4 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy necessary binaries and files from the builder

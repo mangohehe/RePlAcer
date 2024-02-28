@@ -110,6 +110,7 @@ class Circuit {
   int ParseLef(vector< string >& lefStor, bool isVerbose);
   int ParseDef(string filename, bool isVerbose);
   
+  void WriteDeftoS3(FILE* _fout);
   void WriteLef(FILE* _fout);
   void WriteDef(FILE* _fout);
 
@@ -259,6 +260,7 @@ void ReadPl(const char* fileName, bool isNameConvert = false);
 void ReadPlLefDef(const char* fileName, bool isNameConvert = false);
 
 void WriteDef(const char* defOutput);
+void WriteDeftoS3(const char* defOutput);
 
 void GenerateModuleTerminal(Replace::Circuit& __ckt);
 void GenerateRow(Replace::Circuit& __ckt);

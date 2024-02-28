@@ -242,15 +242,77 @@ void initGlobalVarsAfterParse() {
   ///////////////////////////////////////////////////////
 }
 
-void initArgumentFromS3 () {
-    Aws::SDKOptions options;
-    options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
+void parseConfigJson(const json& config) {
+    // Example parsing various types of data from the config JSON
+    if (config.contains("bmflag")) {
+        bmFlagCMD = config["bmflag"].get<std::string>();
+    }
+    if (config.contains("target_cell_den")) {
+        target_cell_den = config["target_cell_den"].get<float>();
+    }
+    if (config.contains("verbose")) {
+        isVerbose = config["verbose"].get<bool>();
+    }
+    if (config.contains("bin")) {
+        auto bin = config["bin"];
+        if (bin.is_array() && bin.size() == 2) {
+            dim_bin.x = bin[0].get<int>();
+            dim_bin.y = bin[1].get<int>();
+        }
+    }
+    if (config.contains("overflow")) {
+        overflowMin = config["overflow"].get<float>();
+    }
+    if (config.contains("routability")) {
+        isRoutability = config["routability"].get<bool>();
+    }
+    if (config.contains("plot")) {
+        isPlot = config["plot"].get<bool>();
+    }
+    if (config.contains("onlyGP")) {
+        isOnlyGlobalPlace = config["onlyGP"].get<bool>();
+    }
+    if (config.contains("lib")) {
+        libStor.clear();
+        for (const auto& lib : config["lib"]) {
+            libStor.push_back(lib.get<std::string>());
+        }
+    }
+    if (config.contains("lef")) {
+        lefStor.clear();
+        for (const auto& lef : config["lef"]) {
+            lefStor.push_back(lef.get<std::string>());
+        }
+    }
+    if (config.contains("def")) {
+        defName = config["def"].get<std::string>();
+    }
+    if (config.contains("sdc")) {
+        sdcName = config["sdc"].get<std::string>();
+    }
+    if (config.contains("output")) {
+        outputCMD = config["output"].get<std::string>();
+    }
+    if (config.contains("timing")) {
+        isTiming = config["timing"].get<bool>();
+    }
+    // Add more parameters as needed...
 
-    std::string s3BucketName = std::getenv("Input_S3_BUCKET");
-    std::string s3FileKey = std::getenv("S3_KEY");
+    // After parsing, you might want to adjust values or call any functions to finalize initialization
+    initGlobalVarsAfterParse();
+}
+
+
+void initArgumentFromS3 () {
+
+    // options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
+
+	const char* s3BucketName = std::getenv("CONFIG_S3_BUCKET");
+	const char* s3FileKey = std::getenv("CONFIG_S3_KEY");
     std::string localConfigPath = "./config.json"; // Temporary local path for the downloaded config file
 
     // Initialize S3 downloader
+    Aws::SDKOptions options;
     S3Downloader downloader;
     downloader.Init(options);
 
@@ -1179,63 +1241,4 @@ bool criticalArgumentError() {
   return false;
 }
 
-void parseConfigJson(const json& config) {
-    // Example parsing various types of data from the config JSON
-    if (config.contains("bmflag")) {
-        bmFlagCMD = config["bmflag"].get<std::string>();
-    }
-    if (config.contains("target_cell_den")) {
-        target_cell_den = config["target_cell_den"].get<float>();
-    }
-    if (config.contains("verbose")) {
-        isVerbose = config["verbose"].get<bool>();
-    }
-    if (config.contains("bin")) {
-        auto bin = config["bin"];
-        if (bin.is_array() && bin.size() == 2) {
-            dim_bin.x = bin[0].get<int>();
-            dim_bin.y = bin[1].get<int>();
-        }
-    }
-    if (config.contains("overflow")) {
-        overflowMin = config["overflow"].get<float>();
-    }
-    if (config.contains("routability")) {
-        isRoutability = config["routability"].get<bool>();
-    }
-    if (config.contains("plot")) {
-        isPlot = config["plot"].get<bool>();
-    }
-    if (config.contains("onlyGP")) {
-        isOnlyGlobalPlace = config["onlyGP"].get<bool>();
-    }
-    if (config.contains("lib")) {
-        libStor.clear();
-        for (const auto& lib : config["lib"]) {
-            libStor.push_back(lib.get<std::string>());
-        }
-    }
-    if (config.contains("lef")) {
-        lefStor.clear();
-        for (const auto& lef : config["lef"]) {
-            lefStor.push_back(lef.get<std::string>());
-        }
-    }
-    if (config.contains("def")) {
-        defName = config["def"].get<std::string>();
-    }
-    if (config.contains("sdc")) {
-        sdcName = config["sdc"].get<std::string>();
-    }
-    if (config.contains("output")) {
-        outputCMD = config["output"].get<std::string>();
-    }
-    if (config.contains("timing")) {
-        isTiming = config["timing"].get<bool>();
-    }
-    // Add more parameters as needed...
-
-    // After parsing, you might want to adjust values or call any functions to finalize initialization
-    initGlobalVarsAfterParse();
-}
 

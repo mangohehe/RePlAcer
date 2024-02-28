@@ -890,6 +890,7 @@ void printEPs(void);
 
 void printUsage(void);
 void initArgument(int, char **);
+void initArgumentFromS3();
 void initGlobalVars();
 void initGlobalVarsAfterParse();
 

@@ -481,61 +481,64 @@ void WriteDef(const char* defOutput) {
 
 void WriteDeftoS3(const char* defOutput) {
     MODULE* curModule = NULL;
-    std::string tempFileName = "temp_def_output.def"; // Temporary file name
-
-    // Open temporary file
-    FILE* fp = fopen(tempFileName.c_str(), "w");
-    if (!fp) {
-        std::cerr << "** ERROR: Cannot open temporary file for DEF writing" << std::endl;
-        exit(1);
-    }
 
     // moduleInstnace -> defComponentStor
     for(int i = 0; i < moduleCNT; i++) {
         curModule = &moduleInstance[i];
-        auto cmpPtr = __ckt.defComponentMap.find(std::string(curModule->Name()));
+    auto cmpPtr = __ckt.defComponentMap.find(string(curModule->Name()));
         if(cmpPtr == __ckt.defComponentMap.end()) {
-            std::cout << "** ERROR:  Module Instance ( " << curModule->Name()
+      cout << "** ERROR:  Module Instance ( " << curModule->Name()
                  << " ) does not exist in COMPONENT statement (defComponentMap) "
-                 << std::endl;
+           << endl;
             exit(1);
         }
 
-        // Update into PLACED status
+    // update into PLACED status
         if(!__ckt.defComponentStor[cmpPtr->second].isPlaced()) {
-            __ckt.defComponentStor[cmpPtr->second].setPlacementStatus(DEFI_COMPONENT_PLACED);
+      __ckt.defComponentStor[cmpPtr->second].setPlacementStatus(
+          DEFI_COMPONENT_PLACED);
         }
 
-        // Update into corresponding coordinate
+    // update into corresponding coordinate
+    //
+    // unitX & unitY is used to recover scaling
+
         int x = INT_CONVERT(curModule->pmin.x * unitX) - offsetX;
         int y = INT_CONVERT(curModule->pmin.y * unitY) - offsetY;
 
         // x-coordinate, y-coordinate, cell-orient
         auto orientPtr = __ckt.defRowY2OrientMap.find(y);
-        __ckt.defComponentStor[cmpPtr->second].setPlacementLocation(
-            x, y, (orientPtr != __ckt.defRowY2OrientMap.end()) ? orientPtr->second : 0);
-    }
 
+        __ckt.defComponentStor[cmpPtr->second].setPlacementLocation(
+        x, y,
+        (orientPtr != __ckt.defRowY2OrientMap.end()) ? orientPtr->second : 0);
+
+    // cout << curModule->name << ": " << curModule->pmin.x << " " <<
+    // curModule->pmin.y << endl;
+    }
+    FILE* fp = fopen(defOutput, "w");
+    if(!fp) {
+      cout << "** ERROR:  Cannot open " << defOutput << " (DEF WRITING)" << endl;
+          exit(1);
+      }
     __ckt.WriteDef(fp); // Write to the temporary file
-    fclose(fp); // Close the file
 
     // Read the temporary file into a string
-    std::ifstream t(tempFileName);
+    std::ifstream t(defOutput);
     std::stringstream buffer;
     buffer << t.rdbuf();
 
     S3Uploader uploader;
     std::string s3BucketName = std::getenv("Output_S3_BUCKET");
     std::string s3FileKey = std::getenv("S3_KEY");
+    PrintInfoString("Upload s3BucketName", s3BucketName);
+    PrintInfoString("Upload s3FileKey", s3FileKey);
 
     // Use the new UploadData method
     if (!uploader.UploadData(buffer.str(), s3BucketName, s3FileKey)) {
         std::cerr << "** ERROR: Failed to upload DEF content to S3 bucket" << std::endl;
         exit(1);
     }
-
-    // Clean up the temporary file
-    remove(tempFileName.c_str());
 }
 
 
