@@ -303,30 +303,38 @@ void parseConfigJson(const json& config) {
 }
 
 
-void initArgumentFromS3 () {
-
-    // options.loggingOptions.logLevel = Aws::Utils::Logging::LogLevel::Debug;
-
-	const char* s3BucketName = std::getenv("CONFIG_S3_BUCKET");
-	const char* s3FileKey = std::getenv("CONFIG_S3_KEY");
+void initArgumentFromS3() {
+    const char* s3BucketName = std::getenv("CONFIG_S3_BUCKET");
+    const char* s3FileKey = std::getenv("CONFIG_S3_KEY");
     std::string localConfigPath = "./config.json"; // Temporary local path for the downloaded config file
+
+    // Check for S3 bucket and file key environment variables
+    if (s3BucketName == nullptr || s3FileKey == nullptr) {
+        printf("Environment variables CONFIG_S3_BUCKET or CONFIG_S3_KEY are not set.\n");
+        exit(1);
+    }
+
+    // Logging S3 bucket and file key
+    printf("Downloading configuration from S3 Bucket: %s, Key: %s\n", s3BucketName, s3FileKey);
 
     // Initialize S3 downloader
     Aws::SDKOptions options;
-    S3Downloader downloader;
+    S3Downloader downloader; // Ensure you have an implementation for S3Downloader
     downloader.Init(options);
 
     // Download the config file
     if (!downloader.DownloadFile(s3BucketName, s3FileKey, localConfigPath)) {
-        std::cerr << "Failed to download configuration file from S3." << std::endl;
+        printf("Failed to download configuration file from S3 Bucket: %s, Key: %s\n", s3BucketName, s3FileKey);
         downloader.Shutdown();
         exit(1);
+    } else {
+        printf("Successfully downloaded configuration file from S3 Bucket: %s, Key: %s\n", s3BucketName, s3FileKey);
     }
 
     // Open the downloaded JSON configuration file
     std::ifstream configFile(localConfigPath);
     if (!configFile.is_open()) {
-        std::cerr << "Could not open downloaded configuration file: " << localConfigPath << std::endl;
+        printf("Could not open downloaded configuration file: %s\n", localConfigPath.c_str());
         downloader.Shutdown();
         exit(1);
     }
@@ -336,10 +344,10 @@ void initArgumentFromS3 () {
     configFile >> config;
 
     // Initialize default global variables first
-    initGlobalVars();
+    initGlobalVars(); // Ensure you have an implementation for this
 
     // Now proceed to initialize global variables based on the JSON configuration
-    parseConfigJson(config);
+    parseConfigJson(config); // Ensure you have an implementation for this
 
     // Clean up
     configFile.close();
