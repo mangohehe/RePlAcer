@@ -260,7 +260,7 @@ void ReadPl(const char* fileName, bool isNameConvert = false);
 void ReadPlLefDef(const char* fileName, bool isNameConvert = false);
 
 void WriteDef(const char* defOutput);
-void WriteDeftoS3(const char* defOutput);
+void WriteDeftoS3();
 
 void GenerateModuleTerminal(Replace::Circuit& __ckt);
 void GenerateRow(Replace::Circuit& __ckt);

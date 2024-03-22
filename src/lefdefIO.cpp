@@ -479,7 +479,7 @@ void WriteDef(const char* defOutput) {
   __ckt.WriteDef(fp);
 }
 
-void WriteDeftoS3(const char* defOutput) {
+void WriteDeftoS3() {
     MODULE* curModule = NULL;
 
     // moduleInstnace -> defComponentStor
@@ -516,25 +516,34 @@ void WriteDeftoS3(const char* defOutput) {
     // cout << curModule->name << ": " << curModule->pmin.x << " " <<
     // curModule->pmin.y << endl;
     }
-    FILE* fp = fopen(defOutput, "w");
-    if(!fp) {
-      cout << "** ERROR:  Cannot open " << defOutput << " (DEF WRITING)" << endl;
-          exit(1);
-      }
-    __ckt.WriteDef(fp); // Write to the temporary file
 
-    // Read the temporary file into a string
-    std::ifstream t(defOutput);
+    // Temporary file path
+    std::string tempDefFilePath = "./temp_def_output.def";
+    // Open temporary file for writing DEF content
+    FILE* tempFile = fopen(tempDefFilePath.c_str(), "w");
+    if (!tempFile) {
+        std::cerr << "** ERROR: Cannot open temporary file for DEF output." << std::endl;
+        exit(1);
+    }
+
+    // Write DEF to the temporary file
+    __ckt.WriteDef(tempFile);
+    fclose(tempFile);
+
+    // Read the temporary DEF file into a stringstream
+    std::ifstream t(tempDefFilePath);
     std::stringstream buffer;
     buffer << t.rdbuf();
+    t.close();
 
+    // Uploading to S3
     S3Uploader uploader;
-    std::string s3BucketName = std::getenv("Output_S3_BUCKET");
-    std::string s3FileKey = std::getenv("S3_KEY");
-    PrintInfoString("Upload s3BucketName", s3BucketName);
-    PrintInfoString("Upload s3FileKey", s3FileKey);
+    std::string s3BucketName = std::getenv("OUTPUT_S3_BUCKET"); // Ensure this environment variable is correctly set
+    std::string s3FileKey = std::getenv("OUTPUT_S3_KEY"); // Ensure you have a way to generate or retrieve this taskId
 
-    // Use the new UploadData method
+    PrintInfoString("Uploading to S3 Bucket", s3BucketName);
+    PrintInfoString("S3 File Key", s3FileKey);
+
     if (!uploader.UploadData(buffer.str(), s3BucketName, s3FileKey)) {
         std::cerr << "** ERROR: Failed to upload DEF content to S3 bucket" << std::endl;
         exit(1);

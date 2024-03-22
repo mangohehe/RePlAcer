@@ -548,8 +548,8 @@ int main(int argc, char *argv[]) {
       printf("   RUNTIME(s) : %.4f\n\n\n", time_mGP2D);
       PrintProc("End Mixed-Size Global Placement");
 
-      WriteDeftoS3(defGpOutput);
-      WriteDeftoS3(defOutput);
+      WriteDeftoS3();
+      WriteDeftoS3();
 
       // no need to run any other flow with MS-RePlAce
       return 0;
@@ -624,7 +624,7 @@ int main(int argc, char *argv[]) {
   }
 
   if(inputMode == InputMode::lefdef) {
-	  WriteDeftoS3(defGpOutput);
+	  WriteDeftoS3();
   }
 
   ///////////////////////////////////////////////////////////////////////
@@ -647,7 +647,7 @@ int main(int argc, char *argv[]) {
 
   output_final_pl(gDP3_pl);
   if(inputMode == InputMode::lefdef) {
-	  WriteDeftoS3(defOutput);
+	  WriteDeftoS3();
   }
 
   printf(" ### Numbers of Iterations: \n");
